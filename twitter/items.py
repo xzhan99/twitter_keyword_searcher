@@ -9,6 +9,8 @@ import scrapy
 
 
 class TwitterItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
+    tweet_id = scrapy.Field()
+    tweet_info = scrapy.Field()
+    keyword = scrapy.Field()
+    api_url = scrapy.Field()
+    crawl_date = scrapy.Field()

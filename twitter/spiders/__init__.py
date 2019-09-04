@@ -2,3 +2,9 @@
 #
 # Please refer to the documentation for information on how to create and manage
 # your spiders.
+from scrapy import cmdline
+
+if __name__ == '__main__':
+    name = 'search'
+    cmd = 'scrapy crawl %s' % name
+    cmdline.execute(cmd.split())
