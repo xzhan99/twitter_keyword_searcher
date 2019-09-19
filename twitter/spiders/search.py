@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import calendar
 import copy
 import json
 import logging
@@ -30,7 +31,6 @@ def extract_contents(tweet):
         'retweet_count': tweet['retweet_count'],
         'reply_count': tweet['reply_count'],
         'lang': tweet['lang']
-
     }
     entities = tweet['entities']
     for tag in entities.get('hashtags', []):
@@ -40,6 +40,13 @@ def extract_contents(tweet):
     for external_url in entities.get('urls', []):
         tweet_info['external_urls'].append(external_url['expanded_url'])
     return tweet_info
+
+
+def form_search_key(keyword, lang, year, month):
+    last_day = calendar.monthrange(year, month)[1]
+    key = '"%s" lang:%s until:%d-%s-%s since:%d-%s-01' % (
+        keyword, lang, year, str(month).zfill(2), str(last_day).zfill(2), year, str(month).zfill(2))
+    return key
 
 
 class SearchSpider(scrapy.Spider):
@@ -90,14 +97,20 @@ class SearchSpider(scrapy.Spider):
         'pc': [1],
         'spelling_corrections': [1],
     }
-    search_words = ['diabetes', 'pneumonia', 'cancer']
+    search_words = ['cancer', 'diabetes', 'pneumonia', 'common cold']
+    lang = 'en'
+    year = 2009
+    month = 1
+
+    count = 0
 
     def parse(self, response):
         for keyword in self.search_words:
             new_query = copy.deepcopy(self.query_dict)
-            new_query['q'].append(keyword)
+            query_key = form_search_key(keyword, self.lang, self.year, self.month)
+            new_query['q'].append(query_key)
             url = self.base_url + urlencode(new_query, doseq=True)
-            yield Request(url, headers=self.headers, cookies=self.cookies, meta={'keyword': keyword},
+            yield Request(url, headers=self.headers, cookies=self.cookies, meta={'keyword': query_key},
                           callback=self.parse_json_result)
 
     def parse_json_result(self, response):
@@ -107,8 +120,10 @@ class SearchSpider(scrapy.Spider):
             item['tweet_info'] = extract_contents(tweet_content)
             item['tweet_id'] = int(tweet_id)
             item['keyword'] = response.meta['keyword']
+            item['month'] = '%d-%s' % (self.year, str(self.month).zfill(2))
             item['api_url'] = response.url
             item['crawl_date'] = time.strftime('%Y-%m-%d', time.localtime(time.time()))
+            self.count += 1
             yield item
 
         instruction = contents['timeline']['instructions'][-1]
@@ -118,7 +133,10 @@ class SearchSpider(scrapy.Spider):
             cursor = instruction['replaceEntry']['entry']['content']['operation']['cursor']['value']
         else:
             logging.exception('Failed to get cursor from %s' % response.url)
-            exit(1)
+            return
+
+        if self.count > 5000:
+            return
         new_query = copy.deepcopy(self.query_dict)
         new_query['q'].append(response.meta['keyword'])
         new_query['cursor'].append(cursor)

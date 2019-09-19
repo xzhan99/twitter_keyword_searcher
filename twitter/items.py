@@ -12,5 +12,6 @@ class TwitterItem(scrapy.Item):
     tweet_id = scrapy.Field()
     tweet_info = scrapy.Field()
     keyword = scrapy.Field()
+    month = scrapy.Field()
     api_url = scrapy.Field()
     crawl_date = scrapy.Field()
